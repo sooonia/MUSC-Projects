@@ -7,10 +7,11 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import networkx as nx
 import pandas as pd
 import networkx as nx
+import copy
 
 class PrettyWidget(QWidget):
 
-    NumButtons = ['Full','Home', 'plot3']
+    NumButtons = ['Subplots','QuickestPath', 'MostLikelyPath']
 
     def __init__(self):
 
@@ -38,132 +39,51 @@ class PrettyWidget(QWidget):
         grid.addWidget(self.canvas, 0, 1, 9, 9)
         grid.addLayout(buttonLayout, 0, 0)
 
-        self.figure.clf()
-        # Load Data
-        df = pd.read_csv("matt_test_network.csv")
-        # automate using predictions for full scale version
-        color = pd.DataFrame(
-            data=['coral', 'midnightblue', 'silver', 'silver', 'silver', 'midnightblue', 'silver', 'silver', 'silver',
-                  'silver', 'silver'])
-        df['color'] = color
-        g = nx.DiGraph()
-
-        # Add edges into network
-        for i, elrow in df.iterrows():
-            g.add_edge(elrow[0], elrow[1], attr_dict=elrow[2:].to_dict(), weight=elrow['num_connections'])
-
-        # Manually add X and Y coords of nodes
-        nodeList = {'NodeName': ['home', 'ht', 'work', 'daycare', 'coffee'], 'X': [70, 405, 835, 300, 750],
-                    'Y': [250, 300, 240, 450, 510]}
-        nodeFrame = pd.DataFrame(data=nodeList)
-        # add node properties
-        for i, nlrow in nodeFrame.iterrows():
-            g.node[nlrow[0]] = nlrow[1:].to_dict()
+        g=makeNetwork()
 
         # Plot network
         node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
         edge_col = [e[2]['color'] for e in g.edges(data=True)]
         nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85, node_color='c',
                          with_labels=True)
-        labels = nx.get_edge_attributes(g, 'weight')
+        labels = nx.get_edge_attributes(g, 'num_connections')
         nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
         plt.title('Matt\'s Life', size=15)
         plt.axis("off")
 
+        def makeSubplot(name):
+            self.figure.clf()
+            gsub = subgraph(name)
+            node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
+            edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
+            nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
+                             node_color='c',
+                             with_labels=True)
+            labels = nx.get_edge_attributes(gsub, 'num_connections')
+            nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
+            plt.title('Matt\'s Life:\n filtered by \'' + name + '\'', size=15)
+            plt.axis("off")
+            self.canvas.draw_idle()
+
         def onclick(event):
             clickX = event.x
             clickY = event.y
-            if clickX < 162 and clickX > 93 and clickY < 488 and clickY > 427:
-                self.figure.clf()
-                gsub = subgraph('home')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'home\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-            elif clickX < 354 and clickX > 286 and clickY < 423 and clickY > 354:
-                self.figure.clf()
-                gsub = subgraph('ht')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'ht\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-            elif clickX < 595 and clickX > 529 and clickY < 501 and clickY > 437:
-                self.figure.clf()
-                gsub = subgraph('work')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'work\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
+            #Default event
+            if 93 < clickX < 162 and 427 < clickY < 488:
+                makeSubplot('home')
+            elif 286 < clickX < 354 and 353 < clickY < 423:
+                makeSubplot('ht')
+            elif 529 < clickX < 595 and 437 < clickY < 501:
+                makeSubplot('work')
+            elif 479 < clickX < 551 and 65 < clickY < 137:
+                makeSubplot('coffee')
+            elif 225 < clickX < 295 and 149 < clickY < 220:
+                makeSubplot('daycare')
 
-            elif clickX < 551 and clickX > 479 and clickY < 137 and clickY > 65:
-                self.figure.clf()
-                gsub = subgraph('coffee')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'coffee\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-
-            elif clickX < 551 and clickX > 479 and clickY < 137 and clickY > 65:
-                self.figure.clf()
-                gsub = subgraph('coffee')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'coffee\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-
-            elif clickX < 295 and clickX > 225 and clickY < 220 and clickY > 149:
-                self.figure.clf()
-                gsub = subgraph('daycare')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'daycare\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-                # what does event.xdata mean?? also .ydata
-                # print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-                #     ('double' if event.dblclick else 'single', event.button,
-                #     event.x, event.y, event.xdata, event.ydata))
-
-        cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
-
+        # Making cid an attribute will allow for easy pass through functions
+        self.cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
         self.canvas.draw_idle()
 
-        self.show()
 
 
     def createVerticalGroupBox(self):
@@ -183,157 +103,217 @@ class PrettyWidget(QWidget):
 
 
     #build and plot network
-    def Full(self):
+    def Subplots(self):
         self.figure.clf()
-        # Load Data
-        df = pd.read_csv("matt_test_network.csv")
-        # automate using predictions for full scale version
-        color = pd.DataFrame(
-            data=['coral', 'midnightblue', 'silver', 'silver', 'silver', 'midnightblue', 'silver', 'silver', 'silver',
-                  'silver', 'silver'])
-        df['color'] = color
-        g = nx.DiGraph()
+        # this will allow us to override the existing click command
+        self.figure.canvas.mpl_disconnect(self.cid)
 
-        # Add edges into network
-        for i, elrow in df.iterrows():
-            g.add_edge(elrow[0], elrow[1], attr_dict=elrow[2:].to_dict(), weight=elrow['num_connections'])
-
-        # Manually add X and Y coords of nodes
-        nodeList = {'NodeName': ['home', 'ht', 'work', 'daycare', 'coffee'], 'X': [70, 405, 835, 300, 750],
-                    'Y': [250, 300, 240, 450, 510]}
-        nodeFrame = pd.DataFrame(data=nodeList)
-        # add node properties
-        for i, nlrow in nodeFrame.iterrows():
-            g.node[nlrow[0]] = nlrow[1:].to_dict()
+        g = makeNetwork()
 
         # Plot network
         node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
         edge_col = [e[2]['color'] for e in g.edges(data=True)]
         nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85, node_color='c',
                          with_labels=True)
-        labels = nx.get_edge_attributes(g, 'weight')
+        labels = nx.get_edge_attributes(g, 'num_connections')
         nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
         plt.title('Matt\'s Life', size=15)
         plt.axis("off")
 
+        def makeSubplot(name):
+            self.figure.clf()
+            gsub = subgraph(name)
+            node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
+            edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
+            nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
+                             node_color='c',
+                             with_labels=True)
+            labels = nx.get_edge_attributes(gsub, 'num_connections')
+            nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
+            plt.title('Matt\'s Life:\n filtered by \'' + name +'\'', size=15)
+            plt.axis("off")
+            self.canvas.draw_idle()
+
         def onclick(event):
             clickX = event.x
             clickY = event.y
-            if clickX < 162 and clickX > 93 and clickY < 488 and clickY > 427:
-                self.figure.clf()
-                gsub = subgraph('home')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'home\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-            elif clickX < 354 and clickX > 286 and clickY < 423 and clickY > 354:
-                self.figure.clf()
-                gsub = subgraph('ht')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'ht\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-            elif clickX < 595 and clickX > 529 and clickY < 501 and clickY > 437:
-                self.figure.clf()
-                gsub = subgraph('work')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'work\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-
-            elif clickX < 551 and clickX > 479 and clickY < 137 and clickY > 65:
-                self.figure.clf()
-                gsub = subgraph('coffee')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'coffee\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-
-            elif clickX < 551 and clickX > 479 and clickY < 137 and clickY > 65:
-                self.figure.clf()
-                gsub = subgraph('coffee')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'coffee\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-
-            elif clickX < 295 and clickX > 225 and clickY < 220 and clickY > 149:
-                self.figure.clf()
-                gsub = subgraph('daycare')
-                node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in gsub.nodes(data=True)}
-                edge_col = [e[2]['color'] for e in gsub.edges(data=True)]
-                nx.draw_networkx(gsub, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
-                                 node_color='c',
-                                 with_labels=True)
-                labels = nx.get_edge_attributes(gsub, 'weight')
-                nx.draw_networkx_edge_labels(gsub, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-                plt.title('Matt\'s Life:\n filtered by \'daycare\'', size=15)
-                plt.axis("off")
-                self.canvas.draw_idle()
-            #what does event.xdata mean?? also .ydata
-            #print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-             #     ('double' if event.dblclick else 'single', event.button,
-              #     event.x, event.y, event.xdata, event.ydata))
-
-        cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
+            if 93 < clickX < 162 and 427 < clickY < 488:
+                makeSubplot('home')
+            elif 286 < clickX < 354 and 353 < clickY < 423:
+                makeSubplot('ht')
+            elif 529 < clickX < 595 and 437 < clickY < 501:
+                makeSubplot('work')
+            elif 479 < clickX < 551 and 65 < clickY < 137:
+                makeSubplot('coffee')
+            elif 225 < clickX < 295 and 149 < clickY < 220:
+                makeSubplot('daycare')
+        # Making cid an attribute will allow for easy pass through functions
+        self.cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
 
         self.canvas.draw_idle()
 
 
-    def Home(self):
-        self.figure.clf()
-        g = subgraph('home')
-        node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
-        edge_col = [e[2]['color'] for e in g.edges(data=True)]
-        nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85, node_color='c',
-                         with_labels=True)
-        labels = nx.get_edge_attributes(g, 'weight')
-        nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-        plt.title('Matt\'s Life: filtered by \'home\'', size=15)
-        plt.axis("off")
+    def QuickestPath(self):
+        # this will allow us to override the existing click command
+        self.figure.canvas.mpl_disconnect(self.cid)
+
+        # Load Data
+        g = makeNetwork()
+
+        def plotNet(g):
+            self.figure.clf()
+            # Plot network
+            node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
+            edge_col = [e[2]['color'] for e in g.edges(data=True)]
+            nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85, node_color='c',
+                             with_labels=True)
+            labels = nx.get_edge_attributes(g, 'num_connections')
+            nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
+            plt.title('Matt\'s Life', size=15)
+            plt.axis("off")
+            self.canvas.draw_idle()
+
+        plotNet(g)
+
+
+        # startNodeTracker keeps track of if the click is giving a start node or a destination node
+        self.startNodeTracker = True
+        self.startNode = ''
+
+        def onclick(event):
+            clickX = event.x
+            clickY = event.y
+
+            if(self.startNodeTracker):
+
+                # reset graph
+                plotNet(g)
+                # automatically switch the tracker. Revert later if bad input
+                self.startNodeTracker = False
+                if 93 < clickX < 162 and 427 < clickY < 488:
+                    self.startNode= 'home'
+                elif 286 < clickX < 354 and 353 < clickY < 423:
+                    self.startNode = 'ht'
+                elif 529 < clickX < 595 and 437 < clickY < 501:
+                    self.startNode = 'work'
+                elif 479 < clickX < 551 and 65 < clickY < 137:
+                    self.startNode = 'coffee'
+                elif 225 < clickX < 295 and 149 < clickY < 220:
+                    self.startNode = 'daycare'
+                # This statement reverts the startNodeTracker if the click did not yield usable input
+                else:
+                    self.startNodeTracker = True
+
+
+            else:
+                # automatically switch the tracker. Revert later if bad input
+                self.startNodeTracker = True
+                if 93 < clickX < 162 and 427 < clickY < 488:
+                    endNode= 'home'
+                elif 286 < clickX < 354 and 353 < clickY < 423:
+                    endNode = 'ht'
+                elif 529 < clickX < 595 and 437 < clickY < 501:
+                    endNode = 'work'
+                elif 479 < clickX < 551 and 65 < clickY < 137:
+                    endNode = 'coffee'
+                elif 225 < clickX < 295 and 149 < clickY < 220:
+                    endNode = 'daycare'
+                # This statement reverts the startNodeTracker if the click did not yield usable input
+                else:
+                    self.startNodeTracker = False
+                #If user's click was on a destination node
+                if(self.startNodeTracker):
+                    gnew = makeNetwork()
+                    fastest = nx.shortest_path(gnew, source=self.startNode, target= endNode, weight='ave_time')
+
+                    for i in range(len(fastest)-1):
+                        gnew[fastest[i]][fastest[i+1]]['color'] = 'midnightblue'
+                    plotNet(gnew)
+
+
+
+        self.cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
         self.canvas.draw_idle()
 
-    def plot3(self):
-        self.figure.clf()
-        ax1 = self.figure.add_subplot(211)
-        x1 = [i for i in range(100)]
-        y1 = [i ** 0.5 for i in x1]
-        ax1.plot(x1, y1, 'b.-')
 
-        ax2 = self.figure.add_subplot(212)
-        x2 = [i for i in range(100)]
-        y2 = [i for i in x2]
-        ax2.plot(x2, y2, 'b.-')
+    def MostLikelyPath(self):
+        # this will allow us to override the existing click command
+        self.figure.canvas.mpl_disconnect(self.cid)
+
+        # Load Data
+        g = makeNetwork()
+
+        def plotNet(g):
+            self.figure.clf()
+            # Plot network
+            node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
+            edge_col = [e[2]['color'] for e in g.edges(data=True)]
+            nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85,
+                             node_color='c',
+                             with_labels=True)
+            labels = nx.get_edge_attributes(g, 'num_connections')
+            nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
+            plt.title('Matt\'s Life', size=15)
+            plt.axis("off")
+            self.canvas.draw_idle()
+
+        plotNet(g)
+
+        # startNodeTracker keeps track of if the click is giving a start node or a destination node
+        self.startNodeTracker = True
+        self.startNode = ''
+
+        def onclick(event):
+            clickX = event.x
+            clickY = event.y
+
+            if (self.startNodeTracker):
+
+                # reset graph
+                plotNet(g)
+                # automatically switch the tracker. Revert later if bad input
+                self.startNodeTracker = False
+                if 93 < clickX < 162 and 427 < clickY < 488:
+                    self.startNode = 'home'
+                elif 286 < clickX < 354 and 353 < clickY < 423:
+                    self.startNode = 'ht'
+                elif 529 < clickX < 595 and 437 < clickY < 501:
+                    self.startNode = 'work'
+                elif 479 < clickX < 551 and 65 < clickY < 137:
+                    self.startNode = 'coffee'
+                elif 225 < clickX < 295 and 149 < clickY < 220:
+                    self.startNode = 'daycare'
+                # This statement reverts the startNodeTracker if the click did not yield usable input
+                else:
+                    self.startNodeTracker = True
+
+
+            else:
+                # automatically switch the tracker. Revert later if bad input
+                self.startNodeTracker = True
+                if 93 < clickX < 162 and 427 < clickY < 488:
+                    endNode = 'home'
+                elif 286 < clickX < 354 and 353 < clickY < 423:
+                    endNode = 'ht'
+                elif 529 < clickX < 595 and 437 < clickY < 501:
+                    endNode = 'work'
+                elif 479 < clickX < 551 and 65 < clickY < 137:
+                    endNode = 'coffee'
+                elif 225 < clickX < 295 and 149 < clickY < 220:
+                    endNode = 'daycare'
+                # This statement reverts the startNodeTracker if the click did not yield usable input
+                else:
+                    self.startNodeTracker = False
+                # If user's click was on a destination node
+                if (self.startNodeTracker):
+                    gnew = makeNetwork()
+                    mostLikely = nx.shortest_path(gnew, source=self.startNode, target=endNode, weight='weight')
+
+                    for i in range(len(mostLikely) - 1):
+                        gnew[mostLikely[i]][mostLikely[i + 1]]['color'] = 'midnightblue'
+                    plotNet(gnew)
+
+        self.cid = self.figure.canvas.mpl_connect('button_press_event', onclick)
         self.canvas.draw_idle()
 
     def center(self):
@@ -342,24 +322,36 @@ class PrettyWidget(QWidget):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def clickSubGraph(self):
-        self.figure.clf()
-        g = subgraph('home')
-        node_pos = {node[0]: (node[1]['X'], -node[1]['Y']) for node in g.nodes(data=True)}
-        edge_col = [e[2]['color'] for e in g.edges(data=True)]
-        nx.draw_networkx(g, pos=node_pos, arrows=True, edge_color=edge_col, node_size=2200, alpha=.85, node_color='c',
-                         with_labels=True)
-        labels = nx.get_edge_attributes(g, 'weight')
-        nx.draw_networkx_edge_labels(g, pos=node_pos, edge_labels=labels, font_color='black', alpha=.2)
-        plt.title('Matt\'s Life: filtered by \'home\'', size=15)
-        plt.axis("off")
-        self.canvas.draw_idle()
+
+def makeNetwork():
+    # Load Data
+    df = pd.read_csv("matt_test_network.csv")
+    # automate using predictions for full scale version
+    color = pd.DataFrame(
+        data=['silver'] * len(df.index))
+    df['color'] = color
+    g = nx.DiGraph()
+
+    # Add edges into network
+    for i, elrow in df.iterrows():
+        g.add_edge(elrow[0], elrow[1], attr_dict=elrow[2:].to_dict(), weight=1/elrow['num_connections'])
+
+    # Manually add X and Y coords of nodes
+    nodeList = {'NodeName': ['home', 'ht', 'work', 'daycare', 'coffee'], 'X': [70, 405, 835, 300, 750],
+                'Y': [250, 300, 240, 450, 510]}
+    nodeFrame = pd.DataFrame(data=nodeList)
+    # add node properties
+    for i, nlrow in nodeFrame.iterrows():
+        g.node[nlrow[0]] = nlrow[1:].to_dict()
+
+    return g
+
 
 def subgraph(term):
     df = pd.read_csv("matt_test_network.csv")
     # automate using predictions for full scale version
     color = pd.DataFrame(
-        data=['coral', 'midnightblue', 'silver', 'silver', 'silver', 'midnightblue', 'silver', 'silver', 'silver',
+        data=['silver', 'silver', 'silver', 'silver', 'silver', 'silver', 'silver', 'silver', 'silver',
               'silver', 'silver'])
     df['color'] = color
     df_sub = df.loc[df['Origin'] == term]
@@ -367,7 +359,7 @@ def subgraph(term):
 
     # Add edges into network
     for i, elrow in df_sub.iterrows():
-        g.add_edge(elrow[0], elrow[1], attr_dict=elrow[2:].to_dict(), weight=elrow['num_connections'])
+        g.add_edge(elrow[0], elrow[1], attr_dict=elrow[2:].to_dict(), weight=1/elrow['num_connections'])
 
     # Manually add X and Y coords of nodes
     nodeList = {'NodeName': ['home', 'ht', 'work', 'daycare', 'coffee'], 'X': [70, 405, 835, 300, 750],
