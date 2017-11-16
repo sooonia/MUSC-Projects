@@ -1,0 +1,12 @@
+Origin,Dest,ave_time,num_connections
+home,work,25,2
+home,daycare,17,18
+ht,home,10,6
+daycare,ht,18,3
+daycare,coffee,15,1
+daycare,work,12,17
+coffee,work,11,6
+work,ht,18,3
+work,daycare,12,5
+work,coffee,11,5
+work,home,27,11
