@@ -114,6 +114,45 @@ build_model <- function(rd, predVars, splitDate, clusterSize = 2){
   b<-Sys.time()-a
   print(paste("Model Build Time: ",b))
   
+  obs<- as.factor(eval_data[,targetCol])
+  preds<-predict(model,as.matrix(eval_data.tp[, measures]), 
+                 array.layout =   "rowmajor")
+  preds<-data.frame(preds[1,], preds[2,])
+  colnames(preds)<-levels(obs)
+  
+  ## plot performance vs cutoff for test set 
+  pref<-prediction(predictions = preds[,2], labels = obs)
+  plot(performance(pref, 'acc',x.measure = 'cutoff' ))
+  
+  
+  
+  ## set thge cutoff 
+  cutoff<-.75
+  newPreds<-as.factor(ifelse( preds[,2]> cutoff ,1,0))
+  levels(newPreds)<-levels(obs)
+  ## get the confusion matrix
+  caret::confusionMatrix(data = newPreds, 
+                         reference = obs)
+  ## get two class summary 
+  twoClassSummary(data = data.frame(obs = obs,pred = newPreds, preds  ) ,
+                  lev = levels(obs), 
+                  model = 'mxnet' )
+  
+  
+  ## test Preformanc against training Set 
+  predsp<-predict(model,as.matrix(train_data.tp[, measures]), 
+                  array.layout =   "rowmajor")[2,]
+  predsr<-as.factor(ifelse(predsp > .5,1,0))
+  obs<- as.factor(train_data[,targetCol])
+  ## get the ROC 
+  r<-pROC::roc(obs, predsp)
+  print(r)
+  ## get the confusion matrix
+  preds<-predsr
+  levels(preds)<-levels(obs)
+  caret::confusionMatrix(data = preds, 
+                         reference = obs)
+  
   return(model)
   
 }
