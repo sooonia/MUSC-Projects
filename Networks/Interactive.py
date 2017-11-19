@@ -6,8 +6,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import networkx as nx
 import pandas as pd
-import networkx as nx
-import copy
 
 class PrettyWidget(QWidget):
 
